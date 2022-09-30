@@ -1,8 +1,12 @@
+#This project are partly refer to 
+#  Chen C, Li R, Shu L, et al. Predicting future dynamics from 
+#  short-term time series using an Anticipated Learning Machine[J].
+#  National science review, 2020, 7(6): 1079-1091.
 import torch
 import torch.nn as nn
 import torch.utils.data as Data
 import numpy as np
-# fix random number to ensore the reliability of our results
+
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 SEED = 47
 torch.manual_seed(SEED)
@@ -11,41 +15,11 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.cuda.manual_seed(SEED)
 
-'''
-#initial parameters
-		LR1	LR2	D		DROPOUT		period		EPOCH		alpha		Activate
-1:		0.03	0.03	0.9		0		0		300		0.1		Tanh
-2:		0.03	0.03	0.9		0		1		300		0.1		Tanh
-3:		0.03	0.03	0.9		0		2		300		0.1		Tanh
-4:		0.03	0.03	0.9		0		3		300		0.1		Tanh
-5:		0.03	0.03	0.9		0		4		300		0.1		Tanh
-6:		0.03	0.03	0.9		0		5		300		0.1		Tanh
-7:		0.03	0.03	0.9		0		6		300		0.1		Tanh
-8:		0.03	0.03	0.9		0		7		300		0.1		Tanh
-9:		0.03	0.03	0.9		0		8		300		0.1		Tanh
-10:		0.03	0.03	0.9		0		9		300		0.1		Tanh
-11:		0.03	0.03	0.9		0		10		300		0.1		Tanh
-12:		0.03	0.03	0.9		0		11		300		0.1		Tanh
-13:		0.03	0.03	0.9		0		12		300		0.1		Tanh
-14:		0.03	0.03	0.999		0		13		200		0.1		Tanh
-15:		0.03	0.03	0.999		0		14		500		0.1		Tanh
-16:		0.03	0.03	0.999		0		15		500		0.1		Tanh
-17:		0.03	0.03	0.999		0		16		500		0.1		Tanh
-18:		0.03	0.03	0.999		0		17		500		0.1		Tanh
-19:		0.03	0.03	0.999		0		18		500		0.1		Tanh
-20:		0.03	0.03	0.999		0		19		500		0.1		Tanh
-21:		0.03	0.03	0.999		0		20		500		0.1		Tanh
-22:		0.03	0.03	0.999		0		21		500		0.1		Tanh
-23:		0.03	0.03	0.999		0		22		200		0.1		Tanh
-24:		0.03	0.03	0.999		0		23		200		0.1		Tanh
-25:		0.03	0.03	0.999		0		24		200		0.1		Tanh
-26:		0.03	0.03	0.999		0		25		1000		0.1		Tanh
-27:		0.03	0.03	0.999		0		26		1000		0.1		Tanh
-'''
+
 eddy_id=9
 maxlength=130
 
-#初始化结果数组
+#Initialize the result array
 result_predict=np.array([])
 result_target=np.array([])
 for ii in range(0,130,10):
@@ -322,160 +296,3 @@ for ii in range(0,130,10):
     print(result_predict,result_target)
 print(result_predict,result_target)
 
-'''
-after predicting all the 27 time points, train the model by the consistent-training scheme. 
-'''
-'''
-# load the true value of latitude (77 time points)
-Label = np.loadtxt(train_label)
-
-from tqdm import tqdm_notebook
-def show_multi_curve_2(ys, title, legends, xxlabel, yylabel, start_point = 0, if_point = False):
-    x = np.array(range(len(ys[0])))
-    for i in range(len(ys)):
-        if if_point:
-            plt.plot(x[start_point:], ys[i][start_point:], label = legends[i], marker = 'o')
-        else:
-            plt.plot(x[start_point:], ys[i][start_point:], label = legends[i])   
-    plt.axis()
-    plt.title(title)
-    plt.xlabel(xxlabel)
-    plt.ylabel(yylabel)
-    plt.legend()
-    plt.show()
-# steps of prediction
-step = step_of_prediction
-repeat = repeat_number
-
-# NEWINPUTS[i] ---- training inputs of φi 
-NEWINPUTS = []
-for i in range(step):
-    NEWINPUTS.append(data[step-i-1:train_time_points-i-1,:])
-
-# NEWLABELS --- training outputs of φi 
-NEWLABELS = Label[step:train_time_points].reshape(-1,1)
-NEWLABELS = torch.tensor(NEWLABELS, dtype=torch.float64).to(device)
-def alldropout(data, subspace):
-    result = [np.zeros_like(d) for d in data]
-    shuffled_indices=np.random.permutation(data[0].shape[1])
-    indices =shuffled_indices[:subspace]
-    for i in range(len(result)):
-        result[i][:, indices] = data[i][:, indices]
-    return result
-
-# output multi-step predictions of all learnt models
-def predict(models):
-    for model in models:
-        model.eval()
-    predicts = np.array([model(Pred[1:2,:])[0].item() for model in models])
-    targets = Label[train_time_points:train_time_points+step]
-    print(predicts)
-    show_multi_curve_2([predicts, targets],
-                     "predictions from the 1 th to the " +
-                     str(step) + " th steps",
-                     ["predictions", "targets"], "STEP", "Value", 0, True)
-    print('test MAE', MAE(predicts, targets))
-    print('test RMSE', RMSE(predicts, targets))
-    print('test pearsonr', pearsonr(predicts, targets))
-    return predicts
-
-# fold([1,2,3,4,5,6],2)   =  ([1,2]+[3,4]+[5,6])/3  = [3,4]
-def fold(l, period):
-    k = np.array(l[0:period])
-    total = 1
-    for i in range(period, len(l), period):
-        total += 1
-        k += np.array(l[i:i+period])
-    return k/total
-
-# one round of training on all models
-# cycle --- training rounds  D --- sampling rate  alpha --- weight between two parts of losses
-def mini_train(cycle, EPOCH, D, alpha, models, optimizers, loss_function):
-    for i in range(cycle):
-        # train --- φ2-φn
-        for modelindex in range(1, step):
-            models[modelindex].train()
-            losses = []
-            losses1 = []
-            losses2 = []
-            for epoch in tqdm_notebook(range(EPOCH)):
-                DR = alldropout(NEWINPUTS, int(INPUT_SIZE * D))
-                output1 = models[modelindex](torch.tensor(DR[modelindex], dtype=torch.float64).to(device))
-                loss1 = loss_function(output1, NEWLABELS)
-                models[0].eval()
-                output2 = models[0](torch.tensor(DR[0], dtype=torch.float64).to(device))
-                for premodelindex in range(1,modelindex):
-                    models[premodelindex].eval()
-                    output2 += models[premodelindex](torch.tensor(DR[premodelindex], dtype=torch.float64).to(device))
-                output2 /= modelindex
-                loss2 = loss_function(output1, output2)
-                loss = loss1 + alpha*loss2
-                losses.append(loss.item())
-                losses1.append(loss1.item())
-                losses2.append(loss2.item())
-                optimizers[modelindex].zero_grad()
-                loss.backward()
-                optimizers[modelindex].step()
-            models[modelindex].eval()
-        # φ1
-        modelindex = 0
-        models[modelindex].train()
-        for epoch in tqdm_notebook(range(EPOCH)):
-            DR = alldropout(NEWINPUTS, int(INPUT_SIZE * D))
-            output1 = models[modelindex](torch.tensor(DR[modelindex], dtype=torch.float64).to(device))
-            loss1 = loss_function(output1, NEWLABELS)
-            models[1].eval()
-            output2 = models[1](torch.tensor(DR[1], dtype=torch.float64).to(device))
-            for aftermodelindex in range(2,step):
-                models[aftermodelindex].eval()
-                output2 += models[aftermodelindex](torch.tensor(DR[aftermodelindex], dtype=torch.float64).to(device))
-            output2 /= (step-1)
-            loss2 = loss_function(output1, output2)
-            loss = loss1 + alpha*loss2
-            losses.append(loss.item())
-            losses1.append(loss1.item())
-            losses2.append(loss2.item())
-            optimizers[modelindex].zero_grad()
-            loss.backward()
-            optimizers[modelindex].step()
-        models[modelindex].eval()
-    # Output the results after each round of training
-    show_multi_curve_2([fold(x, EPOCH) for x in [losses1, losses2, losses]],
-                             "losses for the " + str(i + 1) + " th cycle",
-                             ["losses1", "losses1", "losses"],
-                             "EPOCH", "Value")
-    p = predict(models)
-    return p
- 
-# inital parameters
-cycle = 2
-EPOCH = 1
-D = 0.3
-DROPOUT = 0.5
-alpha = 1
-LR = 1e-5
-w = 0
-
-# multi-step predicted results at #step time points with #repeat consistent-training
-loss_function = nn.MSELoss()
-from scipy.stats import spearmanr
-final_predicts = np.array([0.0] * step)
-for r in range(repeat):
-    MODELS = [NN(units).to(device).double() for i in range(step)]
-    for i in range(step):
-        saved_parametes = torch.load('./models/'+str(r)+'_'+str(i)+'.pt')
-        MODELS[i].load_state_dict(saved_parametes)
-        optimizers = [torch.optim.Adam(model.parameters(),lr=LR,weight_decay=w) for model in MODELS]
-    final_predicts = final_predicts + mini_train(cycle, EPOCH, D, alpha, MODELS, optimizers, loss_function)
-final_predicts /= repeat
-targets = Label[train_time_points:train_time_points+step]
-print(final_predicts)
-show_multi_curve_2([final_predicts, targets],
-                     "final predictions from the 1 th to the " +
-                     str(step) + " th steps",
-                     ["predictions", "targets"], "STEP", "Value", 0, True)
-print('test MAE', MAE(final_predicts, targets))
-print('test RMSE', RMSE(final_predicts, targets))
-print('test pearsonr', pearsonr(final_predicts, targets))
-print('test spearmanr',spearmanr(final_predicts,targets))
-'''
